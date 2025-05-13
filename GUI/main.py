@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout,
+    QApplication, QWidget, QVBoxLayout, QMessageBox,
     QLabel, QLineEdit, QPushButton, QTableWidget, QTableWidgetItem
 )
 from Controller.controller import Controller
@@ -13,10 +13,10 @@ class HospitalApp(QWidget):
 
     def init_ui(self):
         self.setWindowTitle('Sistema de Información Hospitalaria')
+        self.setGeometry(100, 100, 800, 600)
 
         layout = QVBoxLayout()
 
-        # Crear hospital
         self.hospital_name_input = QLineEdit()
         self.hospital_name_input.setPlaceholderText('Nombre del Hospital')
         create_hospital_btn = QPushButton('Crear Hospital')
@@ -26,7 +26,6 @@ class HospitalApp(QWidget):
         layout.addWidget(self.hospital_name_input)
         layout.addWidget(create_hospital_btn)
 
-        # Añadir doctor
         self.doctor_name_input = QLineEdit()
         self.doctor_name_input.setPlaceholderText('Nombre del Doctor')
         self.speciality_input = QLineEdit()
@@ -42,7 +41,6 @@ class HospitalApp(QWidget):
         layout.addWidget(self.dni_input)
         layout.addWidget(add_doctor_btn)
 
-        # Buscar doctor
         self.search_dni_input = QLineEdit()
         self.search_dni_input.setPlaceholderText('DNI para buscar')
         search_btn = QPushButton('Buscar Doctor')
@@ -52,7 +50,6 @@ class HospitalApp(QWidget):
         layout.addWidget(self.search_dni_input)
         layout.addWidget(search_btn)
 
-        # Tabla resultados
         self.result_table = QTableWidget()
         self.result_table.setColumnCount(4)
         self.result_table.setHorizontalHeaderLabels(['Hospital', 'Doctor', 'Especialidad', 'DNI'])
@@ -64,21 +61,43 @@ class HospitalApp(QWidget):
 
     def create_hospital(self):
         name = self.hospital_name_input.text()
-        if name:
-            self.hospital = self.controller.create_hospital(name)
-            self.hospital_name_input.clear()
+        if not name:
+            QMessageBox.warning(self, "Error", "Por favor escriba el nombre del hospital.", QMessageBox.StandardButton.Ok)
+            return
+        
+        # Verifica si el hospital ya existe
+        for hospital in self.controller.hospitals:
+            if hospital.hospital_name == name:
+                QMessageBox.warning(self, "Error", "El hospital ya existe.", QMessageBox.StandardButton.Ok)
+                return
+        
+        self.hospital = self.controller.create_hospital(name)
+        self.hospital_name_input.clear()
+        QMessageBox.information(self, "Éxito", "Hospital agregado con éxito.", QMessageBox.StandardButton.Ok)
 
     def add_doctor(self):
         if self.hospital:
             doctor_name = self.doctor_name_input.text()
             speciality = self.speciality_input.text()
             dni = self.dni_input.text()
-            if doctor_name and speciality and dni:
-                self.controller.add_doctor_to_hospital(self.hospital, doctor_name, speciality, dni)
-                self.doctor_name_input.clear()
-                self.speciality_input.clear()
-                self.dni_input.clear()
+            if not doctor_name or not speciality or not dni:
+                QMessageBox.warning(self, "Error", "Por favor complete todos los campos del doctor.", QMessageBox.StandardButton.Ok)
+                return
 
+            # Verifica si el doctor ya existe en el hospital
+            for doctor in self.hospital.get_doctors():
+                if doctor.dni == dni:
+                    QMessageBox.warning(self, "Error", "El doctor ya existe en este hospital.", QMessageBox.StandardButton.Ok)
+                    return
+
+            self.controller.add_doctor_to_hospital(self.hospital, doctor_name, speciality, dni)
+            self.doctor_name_input.clear()
+            self.speciality_input.clear()
+            self.dni_input.clear()
+            QMessageBox.information(self, "Éxito", "Doctor agregado con éxito.", QMessageBox.StandardButton.Ok)
+        else:
+            QMessageBox.warning(self, "Error", "Por favor cree un hospital primero.", QMessageBox.StandardButton.Ok)
+        
     def search_doctor(self):
         dni = self.search_dni_input.text()
         result = self.controller.search_by_dni(dni)
@@ -91,6 +110,7 @@ class HospitalApp(QWidget):
             self.result_table.setItem(0, 2, QTableWidgetItem(result['speciality']))
             self.result_table.setItem(0, 3, QTableWidgetItem(result['dni']))
         else:
+            QMessageBox.warning(self, "Error", "No se encontró ningún doctor con ese DNI.", QMessageBox.StandardButton.Ok)
             self.result_table.setRowCount(0)
 
 if __name__ == '__main__':
